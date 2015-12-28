@@ -13,5 +13,12 @@ go get github.com/avishai-ish-shalom/consul-ssh
 Run `consul-ssh --help` for a complete list of flags.
 
 ```
-consul-ssh --service=my_awesome_service --tag=some_tag --username=joe
+consul-ssh ssh --service=my_awesome_service --tag=some_tag --username=joe
+```
+`--username` is optional of course
+
+To list the node for service and tag:
+
+```
+consul-ssh query --service=my_awesome_service --tag=some_tag
 ```
