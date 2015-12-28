@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -12,22 +13,35 @@ import (
 
 var (
 	app       = kingpin.New("consul-ssh", "Query Consul catalog for service")
-	serverURL = app.Flag("server", "Consul URL").Default("http://127.0.0.1:8500/").Envar("CONSUL_URL").URL()
-	tag       = app.Flag("tag", "Consul tag").String()
-	service   = app.Flag("service", "Consul service").Required().String()
+	serverURL = app.Flag("server", "Consul URL; can also be provided using the CONSUL_URL environment variable").Default("http://127.0.0.1:8500/").Envar("CONSUL_URL").URL()
+	tags      = app.Flag("tag", "Consul tag").Short('t').Strings()
+	service   = app.Flag("service", "Consul service").Required().Short('s').String()
 	dc        = app.Flag("dc", "Consul datacenter").String()
 	queryCmd  = app.Command("query", "Query Consul catalog")
-	// json      = queryCmd.Flag("json", "JSON query output").Default(false).Bool()
-	sshCmd = app.Command("ssh", "ssh into server using Consul query")
-	user   = sshCmd.Flag("username", "ssh user name").String()
+	jsonFmt   = queryCmd.Flag("json", "JSON query output").Short('j').Bool()
+	sshCmd    = app.Command("ssh", "ssh into server using Consul query")
+	user      = sshCmd.Flag("username", "ssh user name").Short('u').String()
+	tagsMerge = app.Flag("tags-mode", "Find nodes with *all* or *any* of the tags").Short('m').Default("all").Enum("all", "any")
+	_         = app.HelpFlag.Short('h')
 )
 
 func main() {
-	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
+	cmd := kingpin.MustParse(app.Parse(os.Args[1:]))
+	mergeFunc := intersectionMerge
+	if *tagsMerge == "any" {
+		mergeFunc = unionMerge
+	}
+	results := queryMulti(consulConfig(), *service, *tags, mergeFunc)
+
+	switch cmd {
 	case queryCmd.FullCommand():
-		printQueryResults(query(consulConfig(), *service, *tag))
+		if *jsonFmt {
+			printJsonResults(results)
+		} else {
+			printQueryResults(results)
+		}
 	case sshCmd.FullCommand():
-		ssh(selectRandomNode(query(consulConfig(), *service, *tag)), *user)
+		ssh(selectRandomNode(results), *user)
 	}
 
 }
@@ -40,6 +54,14 @@ func consulConfig() *api.Config {
 	return config
 }
 
+func printJsonResults(results []*api.CatalogService) {
+	if b, err := json.MarshalIndent(results, "", "    "); err != nil {
+		kingpin.Fatalf("Failed to convert results to json, %s\n", err.Error())
+	} else {
+		fmt.Println(string(b))
+	}
+}
+
 func printQueryResults(results []*api.CatalogService) {
 	for _, catalogService := range results {
 		fmt.Println(catalogService.Node)
@@ -48,18 +70,6 @@ func printQueryResults(results []*api.CatalogService) {
 
 func selectRandomNode(services []*api.CatalogService) string {
 	return services[rand.Intn(len(services))].Node
-}
-
-func query(config *api.Config, service string, tag string) []*api.CatalogService {
-	client, err := api.NewClient(config)
-
-	services, _, err := client.Catalog().Service(service, tag, &api.QueryOptions{AllowStale: true, RequireConsistent: false})
-	if err != nil {
-		kingpin.Fatalf("Error querying Consul: %s\n", err.Error())
-		return nil
-	}
-
-	return services
 }
 
 func ssh(address string, user string) {
