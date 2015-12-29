@@ -32,7 +32,9 @@ func main() {
 		mergeFunc = unionMerge
 	}
 	results := queryMulti(consulConfig(), *service, *tags, mergeFunc)
-
+	if len(results) == 0 {
+		kingpin.Fatalf("No results from Consul query")
+	}
 	switch cmd {
 	case queryCmd.FullCommand():
 		if *jsonFmt {
