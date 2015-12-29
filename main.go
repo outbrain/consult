@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	app       = kingpin.New("consul-ssh", "Query Consul catalog for service")
+	app       = kingpin.New("consult", "Query Consul catalog for service")
 	serverURL = app.Flag("server", "Consul URL; can also be provided using the CONSUL_URL environment variable").Default("http://127.0.0.1:8500/").Envar("CONSUL_URL").URL()
 	tags      = app.Flag("tag", "Consul tag").Short('t').Strings()
 	service   = app.Flag("service", "Consul service").Required().Short('s').String()

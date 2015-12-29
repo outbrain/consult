@@ -1,24 +1,34 @@
-# consul-ssh
-SSH into a server from Consul catalog.
+# Consult
+Query Consul from the command line and SSH into a server from Consul catalog.
 
 ## Building
 
 ```
-go get github.com/avishai-ish-shalom/consul-ssh
+go get -u github.com/outbrain/consult
 ```
 
 ## Using
 
-`consul-ssh` needs to know where Consul's API is, this can be configured using the `CONSUL_URL` environment variable or the `--url` command line flag.
-Run `consul-ssh -h` for a complete list of flags.
+`consult` needs to know where Consul's API is, this can be configured using the `CONSUL_URL` environment variable or the `--server` command line flag.
+Run `consult -h` for a complete list of flags.
 
 ```
-consul-ssh ssh --service=my_awesome_service --tag=some_tag --username=joe
+consult ssh --service=my_awesome_service --tag=some_tag --username=joe
 ```
 `--username` is optional of course
 
 To list the node for service and tag:
 
 ```
-consul-ssh query --service=my_awesome_service --tag=some_tag
+consult query --service=my_awesome_service --tag=some_tag
 ```
+
+Multiple tags - you can choose to match _any_ or _all_ tags. By default, all tags must be matched.
+
+```
+consult query -s my_awesome_service -t tag1 -t tag2 -m any
+```
+
+## License
+
+Apache V2
