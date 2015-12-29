@@ -13,6 +13,12 @@ func queryMulti(
 	tags []string,
 	mergeFunc catalogServicesMerger,
 ) []*api.CatalogService {
+	// handle the case of no tags
+	if len(tags) == 0 {
+		return query(config, service, "")
+	}
+
+	// for multiple tags, fork join
 	c := make(chan []*api.CatalogService)
 
 	for _, tag := range tags {

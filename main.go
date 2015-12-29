@@ -26,6 +26,7 @@ var (
 )
 
 func main() {
+	app.Version("0.0.2")
 	cmd := kingpin.MustParse(app.Parse(os.Args[1:]))
 	mergeFunc := intersectionMerge
 	if *tagsMerge == "any" {
