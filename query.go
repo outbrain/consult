@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/hashicorp/consul/api"
+	"github.com/wushilin/parallel"
+	"github.com/wushilin/stream"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -18,28 +20,20 @@ func queryMulti(
 		return query(config, service, "")
 	}
 
-	// for multiple tags, fork join
-	c := make(chan []*api.CatalogService)
+	res, ok := stream.FromArray(tags).Map(func(tag interface{}) parallel.Future {
+		return parallel.MakeFuture(func(tag interface{}) interface{} {
+			return query(config, service, tag.(string))
+		}, tag)
+	}).Map(func(future parallel.Future) interface{} {
+		return future.Wait()
+	}).Reduce(mergeFunc).Value()
 
-	for _, tag := range tags {
-		go func(tag string) {
-			c <- query(config, service, tag)
-		}(tag)
+	if ok {
+		return res.([]*api.CatalogService)
+	} else {
+		// perhaps blow up instead?
+		return nil
 	}
-
-	// collect all results. perhaps we should use a waitgroup instead?
-	var results []*api.CatalogService = nil
-	for i := 0; i < len(tags); i++ {
-		select {
-		case res := <-c:
-			if results == nil {
-				results = res
-			} else {
-				results = mergeFunc(results, res)
-			}
-		}
-	}
-	return results
 }
 
 func query(config *api.Config, service string, tag string) []*api.CatalogService {
