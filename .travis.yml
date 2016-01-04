@@ -4,7 +4,7 @@ go:
 
 before_deploy:
 - go get -u github.com/mitchellh/gox
-- gox -osarch='linux/amd64 darwin/amd64' -output='build/{{.Dir}-{{.OS}}-{{.Arch}}'
+- gox -osarch='linux/amd64 darwin/amd64' -output='build/{{.Dir}}-{{.OS}}-{{.Arch}}'
 
 deploy:
   provider: releases
