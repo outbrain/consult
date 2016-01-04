@@ -12,17 +12,24 @@ import (
 )
 
 var (
-	app       = kingpin.New("consult", "Query Consul catalog for service")
-	serverURL = app.Flag("server", "Consul URL; can also be provided using the CONSUL_URL environment variable").Default("http://127.0.0.1:8500/").Envar("CONSUL_URL").URL()
-	tags      = app.Flag("tag", "Consul tag").Short('t').Strings()
-	service   = app.Flag("service", "Consul service").Required().Short('s').String()
-	dc        = app.Flag("dc", "Consul datacenter").String()
-	queryCmd  = app.Command("query", "Query Consul catalog")
-	jsonFmt   = queryCmd.Flag("json", "JSON query output").Short('j').Bool()
-	sshCmd    = app.Command("ssh", "ssh into server using Consul query")
-	user      = sshCmd.Flag("username", "ssh user name").Short('u').String()
-	tagsMerge = app.Flag("tags-mode", "Find nodes with *all* or *any* of the tags").Short('m').Default("all").Enum("all", "any")
-	_         = app.HelpFlag.Short('h')
+	app           = kingpin.New("consult", "Query Consul catalog for service")
+	serverURL     = app.Flag("server", "Consul URL; can also be provided using the CONSUL_URL environment variable").Default("http://127.0.0.1:8500/").Envar("CONSUL_URL").URL()
+	tags          = app.Flag("tag", "Consul tag").Short('t').Strings()
+	service       = app.Flag("service", "Consul service").Required().Short('s').String()
+	dc            = app.Flag("dc", "Consul datacenter").String()
+	queryCmd      = app.Command("query", "Query Consul catalog")
+	jsonFmt       = queryCmd.Flag("json", "JSON query output").Short('j').Bool()
+	sshCmd        = app.Command("ssh", "ssh into server using Consul query")
+	user          = sshCmd.Flag("username", "ssh user name").Short('u').String()
+	tagsMerge     = app.Flag("tags-mode", "Find nodes with *all* or *any* of the tags").Short('m').Default("all").Enum("all", "any")
+	httpCmd       = app.Command("http", "HTTP Query a Consul service endpoint")
+	httpMethod    = httpCmd.Flag("method", "HTTP method to use").Default("GET").Enum("GET", "POST", "DELETE", "PUT", "HEAD")
+	httpBody      = httpCmd.Flag("body", "Request body").String()
+	httpHeaders   = httpCmd.Flag("header", "Request headers").Short('H').StringMap()
+	httpScheme    = httpCmd.Flag("scheme", "Request scheme").Default("http").String()
+	httpUri       = httpCmd.Flag("URI", "Request URI path").Default("/").String()
+	httpEndpoints = httpCmd.Flag("all-endpoints", "HTTP Query all endpoint").Bool()
+	_             = app.HelpFlag.Short('h')
 )
 
 func main() {
@@ -44,9 +51,14 @@ func main() {
 			printQueryResults(results)
 		}
 	case sshCmd.FullCommand():
-		ssh(selectRandomNode(results), *user)
+		ssh(selectRandomSvc(results).Node, *user)
+	case httpCmd.FullCommand():
+		if *httpEndpoints {
+			httpCmdHandler(results, *httpMethod, *httpScheme, *httpUri, *httpBody, *httpHeaders)
+		} else {
+			httpCmdHandler([]*api.CatalogService{selectRandomSvc(results)}, *httpMethod, *httpScheme, *httpUri, *httpBody, *httpHeaders)
+		}
 	}
-
 }
 
 func consulConfig() *api.Config {
@@ -71,8 +83,8 @@ func printQueryResults(results []*api.CatalogService) {
 	}
 }
 
-func selectRandomNode(services []*api.CatalogService) string {
-	return services[rand.Intn(len(services))].Node
+func selectRandomSvc(services []*api.CatalogService) *api.CatalogService {
+	return services[rand.Intn(len(services))]
 }
 
 func ssh(address string, user string) {

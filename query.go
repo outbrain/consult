@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/hashicorp/consul/api"
-	"github.com/wushilin/parallel"
 	"github.com/wushilin/stream"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -20,12 +19,8 @@ func queryMulti(
 		return query(config, service, "")
 	}
 
-	res, ok := stream.FromArray(tags).Map(func(tag interface{}) parallel.Future {
-		return parallel.MakeFuture(func(tag interface{}) interface{} {
-			return query(config, service, tag.(string))
-		}, tag)
-	}).Map(func(future parallel.Future) interface{} {
-		return future.Wait()
+	res, ok := (&basePStream{stream.FromArray(tags)}).PMap(func(tag interface{}) interface{} {
+		return query(config, service, tag.(string))
 	}).Reduce(mergeFunc).Value()
 
 	if ok {
