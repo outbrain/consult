@@ -11,8 +11,8 @@ deploy:
   api_key:
     secure: StBZP7Tlz7WVDR1Vv8JD4klL1cZBhe8mybFn1xDJcUsUUwuZN+5iZWk4DCENer5NbwlVovwacDuBjOVBSdkmxdKg1omTp8M6sQQY2lVUQ0oFIIi4RORszrCvFkicfOxSn9aQHkiOU7GrpourZ0sjpE2R13Vnp6FAyFAqgbq47NgO4ZL6xKp04R9B/ZvU1w8LODVcJes5SY9Q2zmbjgr3mvX1aTy85lcJ1vtqyDuyliljFEQPEnQzSjmQrW/aM7eOQ2mD4QTHP4CfKsQih6lFS5X5NmulIwg4UMO6K6gjCD5ZxfpCEDb3yRz62guEi/koT/fD9GQ3Ftf2GD/bwRRmfthrim5vK5O39LDf+oGjFabPNzLkgxm9USLlm0uCR83L88VekQ5vpH97sFQ1miuls4gWZnmp+XG0ySKkWmtshLa2l0gNt6JPi7A3sl4pzDKY9PCx4CDK2aAiCXt5iBBOQ9HBWcPTcsHP6+KL6KvMqSIe4GYR3oABBKnuB9L5mfaT2kGv0iSBK9nV0QQ2V/sHS9KpZ6yQhMGPql1Eo1pY0/oN+k3oQ/Um9add3EPDgKeFK36UVyLfuisKC9tY8SfxpTCiza9px9G54Ty86+pMuKs+sAq5l3Z/Rx86Eibrd6/42l89QklC3Eok8p/Yn+iOyDuhrZleb6wyDU956dj830A=
   file:
-  - build/consul-darwin-amd64
-  - build/consul-linux-amd64
+  - build/consult-darwin-amd64
+  - build/consult-linux-amd64
   skip_cleanup: true
   on:
     tags: true
