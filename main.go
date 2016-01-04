@@ -27,7 +27,7 @@ var (
 	httpBody      = httpCmd.Flag("body", "Request body").String()
 	httpHeaders   = httpCmd.Flag("header", "Request headers").Short('H').StringMap()
 	httpScheme    = httpCmd.Flag("scheme", "Request scheme").Default("http").String()
-	httpUri       = httpCmd.Flag("URI", "Request URI path").Default("/").String()
+	httpUri       = httpCmd.Flag("uri", "Request URI path").Default("/").String()
 	httpEndpoints = httpCmd.Flag("all-endpoints", "HTTP Query all endpoint").Bool()
 	_             = app.HelpFlag.Short('h')
 )
