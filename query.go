@@ -1,42 +1,98 @@
 package main
 
 import (
+	"errors"
 	"github.com/hashicorp/consul/api"
+	"github.com/outbrain/consult/misc"
 	"github.com/wushilin/stream"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-type catalogServicesMerger func(a []*api.CatalogService, b []*api.CatalogService) (mergedList []*api.CatalogService)
+type QueryCommand struct {
+	Command
+	misc.IQuery
+	service   string
+	tags      []string
+	tagsMerge string
+}
 
-func queryMulti(
-	config *api.Config,
-	service string,
-	tags []string,
-	mergeFunc catalogServicesMerger,
-) []*api.CatalogService {
-	// handle the case of no tags
-	if len(tags) == 0 {
-		return query(config, service, "")
+type queryCommand struct {
+	QueryCommand
+}
+
+func queryRegisterCli(app *kingpin.Application, opts *appOpts) {
+	q := &queryCommand{}
+	q.IQuery = q
+	q.opts = opts
+	queryCmd := app.Command("query", "Query Consul catalog").Action(q.run)
+	queryCmd.Flag("tag", "Consul tag").Short('t').StringsVar(&q.tags)
+	queryCmd.Flag("service", "Consul service").Required().Short('s').StringVar(&q.service)
+	q.registerCli(queryCmd)
+}
+
+func (q *queryCommand) run(c *kingpin.ParseContext) error {
+	if results, err := q.queryServicesGeneric(); err != nil {
+		return err
+	} else {
+		q.Output(results)
+		return nil
+	}
+}
+
+func (q *QueryCommand) queryServicesGeneric() (services []*api.CatalogService, err_ error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err_ = r.(error)
+		}
+	}()
+
+	mergeFunc := intersectionMerge
+	if q.tagsMerge == "any" {
+		mergeFunc = unionMerge
 	}
 
-	res, ok := (&basePStream{stream.FromArray(tags)}).PMap(func(tag interface{}) interface{} {
-		return query(config, service, tag.(string))
-	}).Reduce(mergeFunc).Value()
+	if clients, err := q.GetConsulClients(); err != nil {
+		return nil, err
+	} else {
+		results := make([]*api.CatalogService, 0)
+
+		for _, client := range clients {
+			results = unionMerge(results, q.queryMulti(client, mergeFunc))
+		}
+
+		if len(results) == 0 {
+			return nil, errors.New("No results from Consul query")
+		}
+		return results, nil
+	}
+}
+
+func (q *QueryCommand) queryMulti(
+	client *api.Client,
+	mergeFunc misc.CatalogServicesMerger,
+) []*api.CatalogService {
+	// handle the case of no tags
+	if len(q.tags) == 0 {
+		return q.IQuery.Query(client, "")
+	}
+
+	res, ok := (&basePStream{stream.FromArray(q.tags)}).PMap(
+		func(tag interface{}) interface{} {
+			return q.IQuery.Query(client, tag.(string)) // use q.IQuery.Query so we can override for testing
+		}).Reduce(mergeFunc).Value()
 
 	if ok {
 		return res.([]*api.CatalogService)
 	} else {
 		// perhaps blow up instead?
-		return nil
+		return []*api.CatalogService{}
 	}
 }
 
-func query(config *api.Config, service string, tag string) []*api.CatalogService {
-	client, err := api.NewClient(config)
-
-	services, _, err := client.Catalog().Service(service, tag, &api.QueryOptions{AllowStale: true, RequireConsistent: false})
+func (q *QueryCommand) Query(client *api.Client, tag string) []*api.CatalogService {
+	services, _, err := client.Catalog().Service(q.service, tag, &api.QueryOptions{AllowStale: true, RequireConsistent: false})
 	if err != nil {
-		kingpin.Fatalf("Error querying Consul: %s\n", err.Error())
+		panic(err)
 		return nil
 	}
 

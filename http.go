@@ -19,6 +19,16 @@ type httpReqResp struct {
 	port int
 }
 
+type httpCommand struct {
+	QueryCommand
+	Method    string
+	Body      string
+	Headers   map[string]string
+	Scheme    string
+	Uri       string
+	Endpoints bool
+}
+
 func httpCall(method string, scheme string, host string, port int, uri string, body string, headers map[string]string) (*httpReqResp, error) {
 	body_reader := strings.NewReader(body)
 	url_struct := &url.URL{Scheme: scheme, Host: host + ":" + strconv.Itoa(port), Path: uri}
@@ -73,7 +83,33 @@ func httpCallEndpoint(endpoint *api.CatalogService,
 	}
 }
 
-func httpCmdHandler(endpoints []*api.CatalogService,
+func httpRegisterCli(app *kingpin.Application, opts *appOpts) {
+	h := &httpCommand{}
+	h.opts = opts
+	httpCmd := app.Command("http", "HTTP Query a Consul service endpoint").Action(h.run)
+	httpCmd.Flag("method", "HTTP method to use").Default("GET").EnumVar(&h.Method, "GET", "POST", "DELETE", "PUT", "HEAD")
+	httpCmd.Flag("body", "Request body").StringVar(&h.Body)
+	httpCmd.Flag("header", "Request headers").Short('H').StringMapVar(&h.Headers)
+	httpCmd.Flag("scheme", "Request scheme").Default("http").StringVar(&h.Scheme)
+	httpCmd.Flag("uri", "Request URI path").Default("/").StringVar(&h.Uri)
+	httpCmd.Flag("all-endpoints", "HTTP Query all endpoint").BoolVar(&h.Endpoints)
+	h.registerCli(httpCmd)
+}
+
+func (h *httpCommand) run(c *kingpin.ParseContext) error {
+	if results, err := h.queryServicesGeneric(); err != nil {
+		return err
+	} else {
+		if h.Endpoints {
+			httpExecute(results, h.Method, h.Scheme, h.Uri, h.Body, h.Headers)
+		} else {
+			httpExecute([]*api.CatalogService{selectRandomSvc(results)}, h.Method, h.Scheme, h.Uri, h.Body, h.Headers)
+		}
+		return nil
+	}
+}
+
+func httpExecute(endpoints []*api.CatalogService,
 	method string,
 	scheme string,
 	uri string,
