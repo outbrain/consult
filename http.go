@@ -86,6 +86,7 @@ func httpCallEndpoint(endpoint *api.CatalogService,
 func httpRegisterCli(app *kingpin.Application, opts *appOpts) {
 	h := &httpCommand{}
 	h.opts = opts
+	h.IQuery = h
 	httpCmd := app.Command("http", "HTTP Query a Consul service endpoint").Action(h.run)
 	httpCmd.Flag("method", "HTTP method to use").Default("GET").EnumVar(&h.Method, "GET", "POST", "DELETE", "PUT", "HEAD")
 	httpCmd.Flag("body", "Request body").StringVar(&h.Body)
