@@ -119,42 +119,46 @@ func (o *Command) GetConsulClient() (*api.Client, error) {
 	return api.NewClient(config)
 }
 
-func (o *Command) GetConsulClients() (map[string]*api.Client, error) {
-	clients := make(map[string]*api.Client, len(o.opts.dcs))
-
+func (o *Command) GetDCs() ([]string, error) {
 	if o.opts.allDCs {
 		l := &listCommand{Command: *o}
 		if dcs, err := l.listDCs(); err != nil {
 			return nil, err
 		} else {
-			o.opts.dcs = dcs
+			return dcs, nil
 		}
-	}
-
-	if len(o.opts.dcs) == 0 {
+	} else if len(o.opts.dcs) == 0 {
 		if client, err := o.GetConsulClient(); err != nil {
 			return nil, err
 		} else if dc, err := getCurrentDC(client); err != nil {
 			return nil, err
 		} else {
-			clients[dc] = client
-			return clients, nil
+			return []string{dc}, nil
 		}
+	} else {
+		return o.opts.dcs, nil
 	}
+}
 
-	for _, dc := range o.opts.dcs {
-		config := api.DefaultConfig()
-		config.Address = o.opts.serverURL.Host
-		config.Scheme = o.opts.serverURL.Scheme
-		config.Datacenter = dc
+func (o *Command) GetConsulClients() (map[string]*api.Client, error) {
+	clients := make(map[string]*api.Client, len(o.opts.dcs))
+	if dcs, err := o.GetDCs(); err != nil {
+		return nil, err
+	} else {
+		for _, dc := range dcs {
+			config := api.DefaultConfig()
+			config.Address = o.opts.serverURL.Host
+			config.Scheme = o.opts.serverURL.Scheme
+			config.Datacenter = dc
 
-		if client, err := api.NewClient(config); err != nil {
-			return nil, err
-		} else {
-			clients[dc] = client
+			if client, err := api.NewClient(config); err != nil {
+				return nil, err
+			} else {
+				clients[dc] = client
+			}
 		}
+		return clients, nil
 	}
-	return clients, nil
 }
 
 func (o *Command) Output(data interface{}, simpleLong []string, simpleShort []string) {
