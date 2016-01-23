@@ -2,6 +2,9 @@ language: go
 go:
 - '1.5'
 
+before_install:
+- go get github.com/hashicorp/consul
+
 before_deploy:
 - go get -u github.com/mitchellh/gox
 - gox -osarch='linux/amd64 darwin/amd64' -output='build/{{.Dir}}-{{.OS}}-{{.Arch}}'
