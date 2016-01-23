@@ -36,6 +36,7 @@ consult query -s my_awesome_service -t tag1 -t tag2 -m any
 Multiple datacenter support
 ```
 consult query -s service1 --dc dc1 --dc dc2
+consult query -s service1 --all-dcs
 ```
 
 `query` flags also work on `http` and `ssh` subcommands.

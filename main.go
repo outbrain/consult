@@ -18,6 +18,7 @@ var (
 
 type appOpts struct {
 	dcs            []string
+	allDCs         bool
 	JsonFormat     bool
 	DetailedOutput bool
 	serverURL      *url.URL
@@ -38,6 +39,7 @@ func main() {
 	opts := &appOpts{}
 
 	app.Flag("dc", "Consul datacenter").StringsVar(&opts.dcs)
+	app.Flag("all-dcs", "Query all datacenters").BoolVar(&opts.allDCs)
 	app.Flag("server", "Consul URL; can also be provided using the CONSUL_URL environment variable").Default("http://127.0.0.1:8500/").Envar("CONSUL_URL").URLVar(&opts.serverURL)
 	app.Flag("json", "JSON query output").Short('j').BoolVar(&opts.JsonFormat)
 	app.Flag("detailed", "Detailed output (ignored if --json given)").Short('d').BoolVar(&opts.DetailedOutput)
@@ -119,6 +121,15 @@ func (o *Command) GetConsulClient() (*api.Client, error) {
 
 func (o *Command) GetConsulClients() (map[string]*api.Client, error) {
 	clients := make(map[string]*api.Client, len(o.opts.dcs))
+
+	if o.opts.allDCs {
+		l := &listCommand{Command: *o}
+		if dcs, err := l.listDCs(); err != nil {
+			return nil, err
+		} else {
+			o.opts.dcs = dcs
+		}
+	}
 
 	if len(o.opts.dcs) == 0 {
 		if client, err := o.GetConsulClient(); err != nil {
