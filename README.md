@@ -18,6 +18,8 @@ Run `consult -h` or `consult help` for a complete list of flags.
 
 * `--json`, `-j` - JSON output
 * `--detailed`, `-d` - Print detailed results with header line
+* `--dc=DC_NAME` - Datacenter to query, can be specified multiple times
+* `--all-dcs` - Query all datacenters. Overrides the `--dc` flag 
 
 ### Query subcommand
 
