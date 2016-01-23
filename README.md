@@ -1,6 +1,8 @@
 # Consult
 Query Consul from the command line and SSH into a server from Consul catalog.
 
+[![Build Status](https://travis-ci.org/outbrain/consult.svg?branch=master)](https://travis-ci.org/outbrain/consult)
+
 ## Building
 
 ```
