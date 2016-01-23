@@ -2,9 +2,8 @@ package main
 
 import (
 	"github.com/hashicorp/consul/api"
-	// "github.com/wushilin/stream"
 	"gopkg.in/alecthomas/kingpin.v2"
-	// "regexp"
+	"regexp"
 	"strings"
 )
 
@@ -32,19 +31,24 @@ func (l *listCommand) listServiceHandler(context *kingpin.ParseContext) error {
 		long := make([]string, 0)
 		long = append(long, "Datacenter\tService\tTags")
 		long = append(long, "")
-
-		for dc, client := range consultClients {
-			if services, _, err := client.Catalog().Services(&api.QueryOptions{}); err != nil {
-				return err
-			} else {
-				for service, tags := range services {
-					short = append(short, dc+"\t"+service)
-					long = append(long, dc+"\t"+service+"\t"+strings.Join(tags, ","))
+		if exp, err := regexp.Compile(l.filterExp); err != nil {
+			return err
+		} else {
+			for dc, client := range consultClients {
+				if services, _, err := client.Catalog().Services(&api.QueryOptions{}); err != nil {
+					return err
+				} else {
+					for service, tags := range services {
+						if exp == nil || exp.Match([]byte(service)) {
+							short = append(short, dc+"\t"+service)
+							long = append(long, dc+"\t"+service+"\t"+strings.Join(tags, ","))
+						}
+					}
+					allServices[dc] = services
 				}
-				allServices[dc] = services
 			}
+			l.Output(allServices, long, short)
 		}
-		l.Output(allServices, long, short)
 	}
 	return nil
 }
@@ -81,14 +85,20 @@ func (l *listCommand) listNodeHandler(context *kingpin.ParseContext) error {
 		long[0] = "Datacenter\tNode\tAddress"
 		long[1] = ""
 
-		for dc, nodes := range results {
-			for _, node := range nodes {
-				long = append(long, dc+"\t"+node.Node+"\t"+node.Address)
-				short = append(short, dc+"\t"+node.Node)
+		if exp, err := regexp.Compile(l.filterExp); err != nil {
+			return err
+		} else {
+			for dc, nodes := range results {
+				for _, node := range nodes {
+					if exp == nil || exp.Match([]byte(node.Node)) {
+						long = append(long, dc+"\t"+node.Node+"\t"+node.Address)
+						short = append(short, dc+"\t"+node.Node)
+					}
+				}
 			}
-		}
 
-		l.Output(results, long, short)
+			l.Output(results, long, short)
+		}
 		return nil
 	}
 }
