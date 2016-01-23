@@ -2,17 +2,22 @@ package main
 
 import (
 	"github.com/hashicorp/consul/api"
+	// "github.com/wushilin/stream"
 	"gopkg.in/alecthomas/kingpin.v2"
+	// "regexp"
+	"strings"
 )
 
 type listCommand struct {
 	Command
+	filterExp string
 }
 
 func listRegisterCli(app *kingpin.Application, opts *appOpts) {
 	l := &listCommand{}
 	l.opts = opts
 	list := app.Command("list", "List Consul entities")
+	list.Flag("regex", "Filter by regular expression").Short('r').StringVar(&l.filterExp)
 	list.Command("service", "List Consult services").Action(l.listServiceHandler)
 	list.Command("dc", "List Consul DataCenters").Action(l.listDCHandler)
 }
@@ -22,15 +27,23 @@ func (l *listCommand) listServiceHandler(context *kingpin.ParseContext) error {
 	if consultClients, err := l.GetConsulClients(); err != nil {
 		return err
 	} else {
-		for dc, client := range consultClients {
+		short := make([]string, 0)
+		long := make([]string, 0)
+		long = append(long, "Datacenter\tService\tTags")
+		long = append(long, "")
 
+		for dc, client := range consultClients {
 			if services, _, err := client.Catalog().Services(&api.QueryOptions{}); err != nil {
 				return err
 			} else {
+				for service, tags := range services {
+					short = append(short, dc+"\t"+service)
+					long = append(long, dc+"\t"+service+"\t"+strings.Join(tags, ","))
+				}
 				allServices[dc] = services
 			}
 		}
-		l.Output(allServices)
+		l.Output(allServices, long, short)
 	}
 	return nil
 }
@@ -40,7 +53,7 @@ func (l *listCommand) listDCHandler(context *kingpin.ParseContext) error {
 	if err != nil {
 		return err
 	}
-	l.Output(dcs)
+	l.Output(dcs, dcs, dcs)
 	return nil
 }
 

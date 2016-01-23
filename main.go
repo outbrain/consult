@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/consul/api"
-	"github.com/outbrain/consult/misc"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"math/rand"
 	"net/url"
@@ -18,10 +17,11 @@ var (
 )
 
 type appOpts struct {
-	dcs           []string
-	JsonFormat    bool
-	serverURL     *url.URL
-	ConsulConfigs []*api.Config
+	dcs            []string
+	JsonFormat     bool
+	DetailedOutput bool
+	serverURL      *url.URL
+	ConsulConfigs  []*api.Config
 }
 
 type Command struct {
@@ -40,6 +40,7 @@ func main() {
 	app.Flag("dc", "Consul datacenter").StringsVar(&opts.dcs)
 	app.Flag("server", "Consul URL; can also be provided using the CONSUL_URL environment variable").Default("http://127.0.0.1:8500/").Envar("CONSUL_URL").URLVar(&opts.serverURL)
 	app.Flag("json", "JSON query output").Short('j').BoolVar(&opts.JsonFormat)
+	app.Flag("detailed", "Detailed output (ignored if --json given)").Short('d').BoolVar(&opts.DetailedOutput)
 	app.HelpFlag.Short('h')
 
 	listRegisterCli(app, opts)
@@ -101,6 +102,14 @@ func ssh(address string, user string) {
 	syscall.Exec(bin, ssh_args, os.Environ())
 }
 
+func getCurrentDC(c *api.Client) (string, error) {
+	if config, err := c.Agent().Self(); err != nil {
+		return "", err
+	} else {
+		return config["Config"]["Datacenter"].(string), nil
+	}
+}
+
 func (o *Command) GetConsulClient() (*api.Client, error) {
 	config := api.DefaultConfig()
 	config.Address = o.opts.serverURL.Host
@@ -114,8 +123,10 @@ func (o *Command) GetConsulClients() (map[string]*api.Client, error) {
 	if len(o.opts.dcs) == 0 {
 		if client, err := o.GetConsulClient(); err != nil {
 			return nil, err
+		} else if dc, err := getCurrentDC(client); err != nil {
+			return nil, err
 		} else {
-			clients[""] = client
+			clients[dc] = client
 			return clients, nil
 		}
 	}
@@ -135,14 +146,20 @@ func (o *Command) GetConsulClients() (map[string]*api.Client, error) {
 	return clients, nil
 }
 
-func (o *Command) Output(data interface{}) {
+func (o *Command) Output(data interface{}, simpleLong []string, simpleShort []string) {
 	if o.opts.JsonFormat {
 		if b, err := json.MarshalIndent(data, "", "    "); err != nil {
 			kingpin.Fatalf("Failed to convert results to json, %s\n", err.Error())
 		} else {
 			fmt.Println(string(b))
 		}
+	} else if o.opts.DetailedOutput {
+		for _, line := range simpleLong {
+			fmt.Println(line)
+		}
 	} else {
-		misc.PrettyPrint(data)
+		for _, line := range simpleShort {
+			fmt.Println(line)
+		}
 	}
 }

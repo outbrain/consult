@@ -2,23 +2,19 @@ package misc
 
 import (
 	"github.com/stretchr/testify/assert"
-	"sort"
 	"testing"
 )
 
 type testStruct struct {
 	A string
 	B string
+	C []string
 }
 
-func TestFlatten(t *testing.T) {
-	var res []string
+func TestStructToString(t *testing.T) {
+	t.Parallel()
+	s := testStruct{"a", "b", []string{"c1", "c2"}}
+	assert.Equal(t, "a\tb\tc1,c2", StructToString(s))
 
-	res = flatten(map[string][]string{"test1": []string{"a", "b"}, "test2": []string{""}})
-	sort.Strings(res)
-	assert.Equal(t, []string{"test1\ta,b", "test2\t"}, res)
-
-	res = flatten(&testStruct{A: "1", B: "2"})
-	sort.Strings(res)
-	assert.Equal(t, []string{"A\t1", "B\t2"}, res)
+	assert.Equal(t, "a\tb\tc1,c2", StructToString(&s))
 }

@@ -6,60 +6,39 @@ import (
 	"strings"
 )
 
-func PrettyPrint(data interface{}) {
-	for _, s := range flatten(data) {
-		fmt.Println(s)
-	}
-}
-
-func flatten(o interface{}) []string {
-	switch x := o.(type) {
-	case map[string]string:
-		res := make([]string, 0)
-		for k, v := range x {
-			res = append(res, k+"\t"+v)
-		}
-		return res
-	case []string:
-		return []string{strings.Join(x, ",")}
-	case string:
-		return []string{x}
-	default:
-		return flattenByType(x)
-	}
-}
-
-func flattenByType(o interface{}) []string {
-	res := make([]string, 0)
+func StructToString(o interface{}) string {
 	x := reflect.ValueOf(o)
-	t := x.Type()
-	switch x.Kind() {
-	case reflect.Map:
-		for _, k := range x.MapKeys() {
-			for _, v := range flatten(x.MapIndex(k).Interface()) {
-				res = append(res, fmt.Sprintf("%v", k)+"\t"+v)
-			}
+	if x.Kind() == reflect.Ptr {
+		ref := x.Elem()
+		if ref.IsValid() {
+			return StructToString(ref.Interface())
+		} else {
+			panic("Null pointer")
 		}
-	case reflect.Array, reflect.Slice:
-		for i := 0; i < x.Len(); i++ {
-			res = append(res, flatten(x.Index(i).Interface())...)
-		}
-	case reflect.Struct:
-		for i := 0; i < x.NumField(); i++ {
-			f := x.Field(i)
-			if f.CanInterface() {
-				for _, v := range flatten(f.Interface()) {
-					res = append(res, t.Field(i).Name+"\t"+v)
-				}
-			}
-		}
-	case reflect.Ptr:
-		val := x.Elem()
-		if val.IsValid() {
-			return flattenByType(val.Interface())
-		}
-	default:
-		return []string{fmt.Sprintf("%v", o)}
 	}
-	return res
+	res := make([]string, x.NumField())
+
+	for i := 0; i < x.NumField(); i++ {
+		f := x.Field(i)
+		switch f.Kind() {
+		case reflect.Array, reflect.Slice:
+			s := make([]string, f.Len())
+			for j := 0; j < f.Len(); j++ {
+				s[j] = fmt.Sprintf("%v", f.Index(j))
+			}
+			res[i] = strings.Join(s, ",")
+		default:
+			res[i] = fmt.Sprintf("%v", f.Interface())
+		}
+	}
+	return strings.Join(res, "\t")
+}
+
+func StructHeaderLine(o interface{}) string {
+	t := reflect.TypeOf(o)
+	res := make([]string, t.NumField())
+	for i := 0; i < t.NumField(); i++ {
+		res[i] = t.Field(i).Name
+	}
+	return strings.Join(res, "\t")
 }

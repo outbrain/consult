@@ -34,7 +34,17 @@ func (q *queryCommand) run(c *kingpin.ParseContext) error {
 	if results, err := q.queryServicesGeneric(); err != nil {
 		return err
 	} else {
-		q.Output(results)
+		short := make([]string, len(results))
+		long := make([]string, len(results)+2)
+		long[0] = misc.StructHeaderLine(api.CatalogService{})
+		long[1] = ""
+
+		for i, res := range results {
+			short[i] = res.Node
+			long[i+2] = misc.StructToString(res)
+		}
+
+		q.Output(results, long, short)
 		return nil
 	}
 }
