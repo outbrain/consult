@@ -38,13 +38,15 @@ func (l *listCommand) listServiceHandler(context *kingpin.ParseContext) error {
 				if services, _, err := client.Catalog().Services(&api.QueryOptions{}); err != nil {
 					return err
 				} else {
+					filtered_services := make(map[string][]string)
 					for service, tags := range services {
 						if exp == nil || exp.Match([]byte(service)) {
 							short = append(short, dc+"\t"+service)
 							long = append(long, dc+"\t"+service+"\t"+strings.Join(tags, ","))
+							filtered_services[service] = tags
 						}
 					}
-					allServices[dc] = services
+					allServices[dc] = filtered_services
 				}
 			}
 			l.Output(allServices, long, short)
@@ -84,20 +86,24 @@ func (l *listCommand) listNodeHandler(context *kingpin.ParseContext) error {
 		long := make([]string, 2)
 		long[0] = "Datacenter\tNode\tAddress"
 		long[1] = ""
+		filtered_results := make(map[string][]*api.Node, 0)
 
 		if exp, err := regexp.Compile(l.filterExp); err != nil {
 			return err
 		} else {
 			for dc, nodes := range results {
+				filtered_results[dc] = make([]*api.Node, 0)
+
 				for _, node := range nodes {
 					if exp == nil || exp.Match([]byte(node.Node)) {
 						long = append(long, dc+"\t"+node.Node+"\t"+node.Address)
 						short = append(short, dc+"\t"+node.Node)
+						filtered_results[dc] = append(filtered_results[dc], node)
 					}
 				}
 			}
 
-			l.Output(results, long, short)
+			l.Output(filtered_results, long, short)
 		}
 		return nil
 	}
