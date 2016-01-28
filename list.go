@@ -56,26 +56,13 @@ func (l *listCommand) listServiceHandler(context *kingpin.ParseContext) error {
 }
 
 func (l *listCommand) listDCHandler(context *kingpin.ParseContext) error {
-	dcs, err := l.listDCs()
-	if err != nil {
+	l.opts.allDCs = true
+	if dcs, err := l.GetDCs(); err != nil {
 		return err
+	} else {
+		l.Output(dcs, dcs, dcs)
+		return nil
 	}
-	l.Output(dcs, dcs, dcs)
-	return nil
-}
-
-func (l *listCommand) listDCs() ([]string, error) {
-	client, err := l.GetConsulClient()
-	if err != nil {
-		return nil, err
-	}
-
-	dcs, qErr := client.Catalog().Datacenters()
-	if qErr != nil {
-		return nil, qErr
-	}
-
-	return dcs, nil
 }
 
 func (l *listCommand) listNodeHandler(context *kingpin.ParseContext) error {

@@ -120,17 +120,25 @@ func (o *Command) GetConsulClient() (*api.Client, error) {
 }
 
 func (o *Command) GetDCs() ([]string, error) {
+	var client *api.Client
+	var err error
+	var dcs []string
+
+	client, err = o.GetConsulClient()
+	if err != nil {
+		return nil, err
+	}
+
 	if o.opts.allDCs {
-		l := &listCommand{Command: *o}
-		if dcs, err := l.listDCs(); err != nil {
+		dcs, err = client.Catalog().Datacenters()
+		if err != nil {
 			return nil, err
 		} else {
 			return dcs, nil
 		}
 	} else if len(o.opts.dcs) == 0 {
-		if client, err := o.GetConsulClient(); err != nil {
-			return nil, err
-		} else if dc, err := getCurrentDC(client); err != nil {
+		var dc string
+		if dc, err = getCurrentDC(client); err != nil {
 			return nil, err
 		} else {
 			return []string{dc}, nil
