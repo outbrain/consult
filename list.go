@@ -23,35 +23,43 @@ func listRegisterCli(app *kingpin.Application, opts *appOpts) {
 }
 
 func (l *listCommand) listServiceHandler(context *kingpin.ParseContext) error {
-	allServices := make(map[string]map[string][]string)
-	if consultClients, err := l.GetConsulClients(); err != nil {
+	short := make([]string, 0)
+	long := make([]string, 0)
+	long = append(long, "Datacenter\tService\tTags")
+	long = append(long, "")
+	if exp, err := regexp.Compile(l.filterExp); err != nil {
 		return err
 	} else {
-		short := make([]string, 0)
-		long := make([]string, 0)
-		long = append(long, "Datacenter\tService\tTags")
-		long = append(long, "")
-		if exp, err := regexp.Compile(l.filterExp); err != nil {
-			return err
-		} else {
-			for dc, client := range consultClients {
-				if services, _, err := client.Catalog().Services(&api.QueryOptions{}); err != nil {
-					return err
-				} else {
-					filtered_services := make(map[string][]string)
-					for service, tags := range services {
-						if exp == nil || exp.Match([]byte(service)) {
-							short = append(short, dc+"\t"+service)
-							long = append(long, dc+"\t"+service+"\t"+strings.Join(tags, ","))
-							filtered_services[service] = tags
-						}
+		results, err := l.QueryWithClients(func(client *api.Client) interface{} {
+			if services, _, err := client.Catalog().Services(&api.QueryOptions{}); err != nil {
+				panic(err)
+				return nil
+			} else {
+				filtered_services := make(map[string][]string)
+				for service, tags := range services {
+					if exp == nil || exp.Match([]byte(service)) {
+						filtered_services[service] = tags
 					}
-					allServices[dc] = filtered_services
 				}
+				return filtered_services
 			}
-			l.Output(allServices, long, short)
+		})
+
+		if err != nil {
+			return err
 		}
+
+		// generate short and long text output
+		for dc, dc_results := range results {
+			for service, tags := range dc_results.(map[string][]string) {
+				short = append(short, dc+"\t"+service)
+				long = append(long, dc+"\t"+service+"\t"+strings.Join(tags, ","))
+			}
+		}
+
+		l.Output(results, long, short)
 	}
+
 	return nil
 }
 
@@ -97,17 +105,20 @@ func (l *listCommand) listNodeHandler(context *kingpin.ParseContext) error {
 }
 
 func (l *listCommand) listNodes() (map[string][]*api.Node, error) {
-	if clients, err := l.GetConsulClients(); err != nil {
+	if results, err := l.QueryWithClients(func(client *api.Client) interface{} {
+		if nodes, _, err := client.Catalog().Nodes(&api.QueryOptions{}); err != nil {
+			panic(err)
+			return nil
+		} else {
+			return nodes
+		}
+	}); err != nil {
 		return nil, err
 	} else {
-		results := make(map[string][]*api.Node)
-		for dc, client := range clients {
-			if nodes, _, err := client.Catalog().Nodes(&api.QueryOptions{}); err != nil {
-				return nil, err
-			} else {
-				results[dc] = nodes
-			}
+		typed_results := make(map[string][]*api.Node)
+		for dc, dc_res := range results {
+			typed_results[dc] = dc_res.([]*api.Node)
 		}
-		return results, nil
+		return typed_results, nil
 	}
 }

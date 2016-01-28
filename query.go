@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"github.com/hashicorp/consul/api"
 	"github.com/outbrain/consult/misc"
 	"github.com/wushilin/stream"
@@ -34,14 +33,16 @@ func (q *queryCommand) run(c *kingpin.ParseContext) error {
 	if results, err := q.queryServicesGeneric(); err != nil {
 		return err
 	} else {
-		short := make([]string, len(results))
-		long := make([]string, len(results)+2)
+		short := make([]string, 0)
+		long := make([]string, 2)
 		long[0] = misc.StructHeaderLine(api.CatalogService{})
 		long[1] = ""
 
-		for i, res := range results {
-			short[i] = res.Node
-			long[i+2] = misc.StructToString(res)
+		for dc, res := range results {
+			for _, service := range res {
+				short = append(short, dc+"\t"+service.Node)
+				long = append(long, dc+"\t"+misc.StructToString(service))
+			}
 		}
 
 		q.Output(results, long, short)
@@ -49,7 +50,7 @@ func (q *queryCommand) run(c *kingpin.ParseContext) error {
 	}
 }
 
-func (q *QueryCommand) queryServicesGeneric() (services []*api.CatalogService, err_ error) {
+func (q *QueryCommand) queryServicesGeneric() (services map[string][]*api.CatalogService, err_ error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err_ = r.(error)
@@ -61,20 +62,17 @@ func (q *QueryCommand) queryServicesGeneric() (services []*api.CatalogService, e
 		mergeFunc = unionMerge
 	}
 
-	if clients, err := q.GetConsulClients(); err != nil {
+	results_by_dc, err := q.QueryWithClients(func(client *api.Client) interface{} {
+		return q.queryMulti(client, mergeFunc)
+	})
+	if err != nil {
 		return nil, err
-	} else {
-		results := make([]*api.CatalogService, 0)
-
-		for _, client := range clients {
-			results = unionMerge(results, q.queryMulti(client, mergeFunc))
-		}
-
-		if len(results) == 0 {
-			return nil, errors.New("No results from Consul query")
-		}
-		return results, nil
 	}
+	typed_results := make(map[string][]*api.CatalogService)
+	for k, v := range results_by_dc {
+		typed_results[k] = v.([]*api.CatalogService)
+	}
+	return typed_results, nil
 }
 
 func (q *QueryCommand) queryMulti(

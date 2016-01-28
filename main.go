@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"github.com/wushilin/stream"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"math/rand"
 	"net/url"
 	"os"
 	"os/exec"
+	"reflect"
 	"syscall"
 )
 
@@ -68,9 +70,13 @@ func sshRegisterCli(app *kingpin.Application, opts *appOpts) {
 }
 
 func (s *sshCommand) run(c *kingpin.ParseContext) error {
-	results, err := s.queryServicesGeneric()
+	results_by_dc, err := s.queryServicesGeneric()
 	if err != nil {
 		return err
+	}
+	results := make([]*api.CatalogService, 0)
+	for _, dc_results := range results_by_dc {
+		results = append(results, dc_results...)
 	}
 	ssh(selectRandomSvc(results).Node, s.user)
 	return nil
@@ -166,6 +172,25 @@ func (o *Command) GetConsulClients() (map[string]*api.Client, error) {
 			}
 		}
 		return clients, nil
+	}
+}
+
+func (o *Command) QueryWithClients(f func(*api.Client) interface{}) (map[string]interface{}, error) {
+	if clients, err := o.GetConsulClients(); err != nil {
+		return nil, err
+	} else {
+		results := make(map[string]interface{})
+		(&basePStream{stream.FromMapEntries(clients)}).PMap(func(me interface{}) interface{} {
+			dc := me.(stream.MapEntry).Key.(reflect.Value).String()
+			client := me.(stream.MapEntry).Value.(*api.Client)
+
+			res := f(client)
+			return stream.MapEntry{dc, res}
+		}).Each(func(me interface{}) {
+			results[me.(stream.MapEntry).Key.(string)] = me.(stream.MapEntry).Value
+		})
+
+		return results, nil
 	}
 }
 

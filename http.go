@@ -98,9 +98,14 @@ func httpRegisterCli(app *kingpin.Application, opts *appOpts) {
 }
 
 func (h *httpCommand) run(c *kingpin.ParseContext) error {
-	if results, err := h.queryServicesGeneric(); err != nil {
+	if results_by_dc, err := h.queryServicesGeneric(); err != nil {
 		return err
 	} else {
+		results := make([]*api.CatalogService, 0)
+		for _, dc_results := range results_by_dc {
+			results = append(results, dc_results...)
+		}
+
 		if h.Endpoints {
 			httpExecute(results, h.Method, h.Scheme, h.Uri, h.Body, h.Headers)
 		} else {
