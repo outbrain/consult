@@ -37,7 +37,7 @@ type sshCommand struct {
 }
 
 func main() {
-	app.Version("0.0.2")
+	app.Version("0.0.7")
 	opts := &appOpts{}
 
 	app.Flag("dc", "Consul datacenter").StringsVar(&opts.dcs)
@@ -77,6 +77,10 @@ func (s *sshCommand) run(c *kingpin.ParseContext) error {
 	results := make([]*api.CatalogService, 0)
 	for _, dc_results := range results_by_dc {
 		results = append(results, dc_results...)
+	}
+	if len(results) == 0 {
+		fmt.Println("No endpoints found")
+		return nil
 	}
 	ssh(selectRandomSvc(results).Node, s.user)
 	return nil
