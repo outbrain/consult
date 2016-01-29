@@ -6,7 +6,7 @@ function bump_version() {
 
 last_tag="$(git describe --tags --abbrev=0)"
 
-if git describe --tags --exact-match &>/dev/null; then
+if git describe --tags --exact-match &>/dev/null && git diff --exit-code &>/dev/null; then
 	version="${last_tag}"
 else
 	version="$(bump_version ${last_tag})"

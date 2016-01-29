@@ -4,12 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/consul/api"
-	"github.com/wushilin/stream"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"math/rand"
 	"net/url"
 	"os"
-	"reflect"
+	"sync"
 	"time"
 )
 
@@ -135,16 +134,16 @@ func (o *Command) QueryWithClients(f func(*api.Client) interface{}) (map[string]
 		return nil, err
 	} else {
 		results := make(map[string]interface{})
-		(&basePStream{stream.FromMapEntries(clients)}).PMap(func(me interface{}) interface{} {
-			dc := me.(stream.MapEntry).Key.(reflect.Value).String()
-			client := me.(stream.MapEntry).Value.(*api.Client)
+		var wg sync.WaitGroup
+		wg.Add(len(clients))
 
-			res := f(client)
-			return stream.MapEntry{dc, res}
-		}).Each(func(me interface{}) {
-			results[me.(stream.MapEntry).Key.(string)] = me.(stream.MapEntry).Value
-		})
-
+		for dc, client := range clients {
+			go func(dc string, client *api.Client) {
+				defer wg.Done()
+				results[dc] = f(client) // don't try this at home...
+			}(dc, client)
+		}
+		wg.Wait()
 		return results, nil
 	}
 }
