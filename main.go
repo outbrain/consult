@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"reflect"
 	"syscall"
+	"time"
 )
 
 var (
@@ -74,12 +75,9 @@ func (s *sshCommand) run(c *kingpin.ParseContext) error {
 	if err != nil {
 		return err
 	}
-	results := make([]*api.CatalogService, 0)
-	for _, dc_results := range results_by_dc {
-		results = append(results, dc_results...)
-	}
+	results := flattenSvcMap(results_by_dc)
 	if len(results) == 0 {
-		fmt.Println("No endpoints found")
+		kingpin.Errorf("No results from query\n")
 		return nil
 	}
 	ssh(selectRandomSvc(results).Node, s.user)
@@ -94,8 +92,17 @@ func printJsonResults(results []*api.CatalogService) {
 	}
 }
 
+func flattenSvcMap(services_by_dc map[string][]*api.CatalogService) []*api.CatalogService {
+	results := make([]*api.CatalogService, 0)
+	for _, dc_results := range services_by_dc {
+		results = append(results, dc_results...)
+	}
+	return results
+}
+
 func selectRandomSvc(services []*api.CatalogService) *api.CatalogService {
-	return services[rand.Intn(len(services))]
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return services[r.Intn(len(services))]
 }
 
 func ssh(address string, user string) {

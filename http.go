@@ -101,11 +101,10 @@ func (h *httpCommand) run(c *kingpin.ParseContext) error {
 	if results_by_dc, err := h.queryServicesGeneric(); err != nil {
 		return err
 	} else {
-		results := make([]*api.CatalogService, 0)
-		for _, dc_results := range results_by_dc {
-			results = append(results, dc_results...)
+		results := flattenSvcMap(results_by_dc)
+		if len(results) == 0 {
+			kingpin.Errorf("No results from query\n")
 		}
-
 		if h.Endpoints {
 			httpExecute(results, h.Method, h.Scheme, h.Uri, h.Body, h.Headers)
 		} else {
