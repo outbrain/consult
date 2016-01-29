@@ -14,7 +14,8 @@ import (
 )
 
 var (
-	app = kingpin.New("consult", "Query Consul catalog for service")
+	app     = kingpin.New("consult", "Query Consul catalog for service")
+	version string
 )
 
 type appOpts struct {
@@ -31,7 +32,7 @@ type Command struct {
 }
 
 func main() {
-	app.Version("0.0.7")
+	app.Version(version)
 	opts := &appOpts{}
 
 	app.Flag("dc", "Consul datacenter").StringsVar(&opts.dcs)
