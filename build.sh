@@ -13,4 +13,9 @@ else
 fi
 
 echo "Building version ${version}"
-go build -ldflags "-X main.version=${version}"
+
+if [[ "$1" == "dev" ]]; then
+	go build -ldflags "-X main.version=${version}"
+else
+	gox -osarch='linux/amd64 darwin/amd64' -ldflags "-X main.version=${version}" -output='build/{{.Dir}}-{{.OS}}-{{.Arch}}'
+fi
