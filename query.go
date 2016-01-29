@@ -50,6 +50,12 @@ func (q *queryCommand) run(c *kingpin.ParseContext) error {
 	}
 }
 
+func (q *QueryCommand) registerCli(cmd *kingpin.CmdClause) {
+	cmd.Flag("tag", "Consul tag").Short('t').StringsVar(&q.tags)
+	cmd.Flag("service", "Consul service").Required().Short('s').StringVar(&q.service)
+	cmd.Flag("tags-mode", "Find nodes with *all* or *any* of the tags").Short('m').Default("all").EnumVar(&q.tagsMerge, "all", "any")
+}
+
 func (q *QueryCommand) queryServicesGeneric() (services map[string][]*api.CatalogService, err_ error) {
 	defer func() {
 		if r := recover(); r != nil {

@@ -9,9 +9,7 @@ import (
 	"math/rand"
 	"net/url"
 	"os"
-	"os/exec"
 	"reflect"
-	"syscall"
 	"time"
 )
 
@@ -32,11 +30,6 @@ type Command struct {
 	opts *appOpts
 }
 
-type sshCommand struct {
-	QueryCommand
-	user string
-}
-
 func main() {
 	app.Version("0.0.7")
 	opts := &appOpts{}
@@ -55,43 +48,6 @@ func main() {
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 }
 
-func (q *QueryCommand) registerCli(cmd *kingpin.CmdClause) {
-	cmd.Flag("tag", "Consul tag").Short('t').StringsVar(&q.tags)
-	cmd.Flag("service", "Consul service").Required().Short('s').StringVar(&q.service)
-	cmd.Flag("tags-mode", "Find nodes with *all* or *any* of the tags").Short('m').Default("all").EnumVar(&q.tagsMerge, "all", "any")
-}
-
-func sshRegisterCli(app *kingpin.Application, opts *appOpts) {
-	s := &sshCommand{}
-	s.IQuery = s
-	s.opts = opts
-	sshCmd := app.Command("ssh", "ssh into server using Consul query").Action(s.run)
-	sshCmd.Flag("username", "ssh user name").Short('u').StringVar(&s.user)
-	s.registerCli(sshCmd)
-}
-
-func (s *sshCommand) run(c *kingpin.ParseContext) error {
-	results_by_dc, err := s.queryServicesGeneric()
-	if err != nil {
-		return err
-	}
-	results := flattenSvcMap(results_by_dc)
-	if len(results) == 0 {
-		kingpin.Errorf("No results from query\n")
-		return nil
-	}
-	ssh(selectRandomSvc(results).Node, s.user)
-	return nil
-}
-
-func printJsonResults(results []*api.CatalogService) {
-	if b, err := json.MarshalIndent(results, "", "    "); err != nil {
-		kingpin.Fatalf("Failed to convert results to json, %s\n", err.Error())
-	} else {
-		fmt.Println(string(b))
-	}
-}
-
 func flattenSvcMap(services_by_dc map[string][]*api.CatalogService) []*api.CatalogService {
 	results := make([]*api.CatalogService, 0)
 	for _, dc_results := range services_by_dc {
@@ -103,22 +59,6 @@ func flattenSvcMap(services_by_dc map[string][]*api.CatalogService) []*api.Catal
 func selectRandomSvc(services []*api.CatalogService) *api.CatalogService {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	return services[r.Intn(len(services))]
-}
-
-func ssh(address string, user string) {
-	bin, err := exec.LookPath("ssh")
-	if err != nil {
-		kingpin.Fatalf("Failed to find ssh binary: %s\n", err.Error())
-	}
-
-	ssh_args := make([]string, 2, 3)
-	ssh_args[0] = "ssh"
-	ssh_args[1] = address
-	if user != "" {
-		ssh_args = append(ssh_args, "-l "+user)
-	}
-
-	syscall.Exec(bin, ssh_args, os.Environ())
 }
 
 func getCurrentDC(c *api.Client) (string, error) {
@@ -154,6 +94,7 @@ func (o *Command) GetDCs() ([]string, error) {
 			return dcs, nil
 		}
 	} else if len(o.opts.dcs) == 0 {
+		// we want to have the name of the current dc
 		var dc string
 		if dc, err = getCurrentDC(client); err != nil {
 			return nil, err
@@ -186,6 +127,8 @@ func (o *Command) GetConsulClients() (map[string]*api.Client, error) {
 	}
 }
 
+// Query in parallel. This function only deals with the parallelization logic
+// returns - a map of dc -> query func results
 func (o *Command) QueryWithClients(f func(*api.Client) interface{}) (map[string]interface{}, error) {
 	if clients, err := o.GetConsulClients(); err != nil {
 		return nil, err
