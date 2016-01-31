@@ -24,8 +24,6 @@ func queryRegisterCli(app *kingpin.Application, opts *appOpts) {
 	q.IQuery = q
 	q.opts = opts
 	queryCmd := app.Command("query", "Query Consul catalog").Action(q.run)
-	queryCmd.Flag("tag", "Consul tag").Short('t').StringsVar(&q.tags)
-	queryCmd.Flag("service", "Consul service").Required().Short('s').StringVar(&q.service)
 	q.registerCli(queryCmd)
 }
 
