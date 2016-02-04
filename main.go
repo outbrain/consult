@@ -45,6 +45,7 @@ func main() {
 	httpRegisterCli(app, opts)
 	sshRegisterCli(app, opts)
 	queryRegisterCli(app, opts)
+	HealthRegisterCli(app, opts)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 }
 
@@ -144,6 +145,13 @@ func (o *Command) QueryWithClients(f func(*api.Client) interface{}) (map[string]
 			}(dc, client)
 		}
 		wg.Wait()
+
+		for _, res := range results {
+			if err, ok := res.(error); ok {
+				return nil, err
+			}
+		}
+
 		return results, nil
 	}
 }

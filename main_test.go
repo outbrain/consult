@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"net/url"
 	"testing"
@@ -22,4 +24,14 @@ func TestMultiDCs(t *testing.T) {
 	assert.Len(t, clients, 2)
 	assert.Contains(t, clients, "dc1")
 	assert.Contains(t, clients, "dc2")
+
+	var res map[string]interface{}
+
+	// QueryWithClients should return error if returned from query function
+	res, err = c.QueryWithClients(func(client *api.Client) interface{} {
+		return errors.New("TEST")
+	})
+	assert.Error(t, err)
+	assert.EqualError(t, err, "TEST")
+	assert.Nil(t, res)
 }

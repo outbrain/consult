@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/hashicorp/consul/api"
+	"github.com/outbrain/consult/misc"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"regexp"
 	"strings"
@@ -25,15 +26,14 @@ func listRegisterCli(app *kingpin.Application, opts *appOpts) {
 func (l *listCommand) listServiceHandler(context *kingpin.ParseContext) error {
 	short := make([]string, 0)
 	long := make([]string, 0)
-	long = append(long, "Datacenter\tService\tTags")
+	long = append(long, misc.JoinWithSep("Datacenter", "Service", "Tags"))
 	long = append(long, "")
 	if exp, err := regexp.Compile(l.filterExp); err != nil {
 		return err
 	} else {
 		results, err := l.QueryWithClients(func(client *api.Client) interface{} {
 			if services, _, err := client.Catalog().Services(&api.QueryOptions{}); err != nil {
-				panic(err)
-				return nil
+				return err
 			} else {
 				filtered_services := make(map[string][]string)
 				for service, tags := range services {
@@ -52,8 +52,8 @@ func (l *listCommand) listServiceHandler(context *kingpin.ParseContext) error {
 		// generate short and long text output
 		for dc, dc_results := range results {
 			for service, tags := range dc_results.(map[string][]string) {
-				short = append(short, dc+"\t"+service)
-				long = append(long, dc+"\t"+service+"\t"+strings.Join(tags, ","))
+				short = append(short, misc.JoinWithSep(dc, service))
+				long = append(long, misc.JoinWithSep(dc, service, strings.Join(tags, ",")))
 			}
 		}
 
@@ -79,7 +79,7 @@ func (l *listCommand) listNodeHandler(context *kingpin.ParseContext) error {
 	} else {
 		short := make([]string, 0)
 		long := make([]string, 2)
-		long[0] = "Datacenter\tNode\tAddress"
+		long[0] = misc.JoinWithSep("Datacenter", "Node", "Address")
 		long[1] = ""
 		filtered_results := make(map[string][]*api.Node, 0)
 
@@ -91,8 +91,8 @@ func (l *listCommand) listNodeHandler(context *kingpin.ParseContext) error {
 
 				for _, node := range nodes {
 					if exp == nil || exp.Match([]byte(node.Node)) {
-						long = append(long, dc+"\t"+node.Node+"\t"+node.Address)
-						short = append(short, dc+"\t"+node.Node)
+						long = append(long, misc.JoinWithSep(dc, node.Node, node.Address))
+						short = append(short, misc.JoinWithSep(dc, node.Node))
 						filtered_results[dc] = append(filtered_results[dc], node)
 					}
 				}
@@ -107,8 +107,7 @@ func (l *listCommand) listNodeHandler(context *kingpin.ParseContext) error {
 func (l *listCommand) listNodes() (map[string][]*api.Node, error) {
 	if results, err := l.QueryWithClients(func(client *api.Client) interface{} {
 		if nodes, _, err := client.Catalog().Nodes(&api.QueryOptions{}); err != nil {
-			panic(err)
-			return nil
+			return err
 		} else {
 			return nodes
 		}

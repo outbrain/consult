@@ -33,13 +33,13 @@ func (q *queryCommand) run(c *kingpin.ParseContext) error {
 	} else {
 		short := make([]string, 0)
 		long := make([]string, 2)
-		long[0] = misc.StructHeaderLine(api.CatalogService{})
+		long[0] = "Datacenter" + misc.SEPARATOR + misc.StructHeaderLine(api.CatalogService{})
 		long[1] = ""
 
 		for dc, res := range results {
 			for _, service := range res {
-				short = append(short, dc+"\t"+service.Node)
-				long = append(long, dc+"\t"+misc.StructToString(service))
+				short = append(short, misc.JoinWithSep(dc, service.Node))
+				long = append(long, misc.JoinWithSep(dc, misc.StructToString(service)))
 			}
 		}
 
